@@ -1,0 +1,50 @@
+name: build
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  # Быстрая проверка синтаксиса всех модулей.
+  syntax:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Compile all modules
+        run: |
+          python -m py_compile \
+            applog.py config.py audio_utils.py cancellation.py \
+            clip_fetcher.py yt_fetcher.py tts_generator.py srt_tools.py \
+            subtitles.py ffmpeg_montage.py build_timeline.py gui.py
+
+  # Полная проверка сборки .exe на Windows.
+  build-exe:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Build with PyInstaller
+        run: pyinstaller --noconfirm --onedir --windowed --name TikTokMovieCutter --collect-all customtkinter --collect-all edge_tts --collect-all faster_whisper --collect-binaries ctranslate2 --collect-data ctranslate2 --collect-all yt_dlp --hidden-import=requests --hidden-import=yt_dlp --hidden-import=edge_tts --hidden-import=ctranslate2 --exclude-module=torch --exclude-module=torchaudio --exclude-module=torchvision --exclude-module=silero_tts gui.py
+
+      - name: Verify exe exists
+        shell: pwsh
+        run: |
+          $exe = "dist\TikTokMovieCutter\TikTokMovieCutter.exe"
+          if (-not (Test-Path $exe)) { throw "exe не собран: $exe" }
+          Write-Host "OK: $exe"
+          Write-Host ("Размер, МБ: " + [math]::Round((Get-ChildItem dist\TikTokMovieCutter -Recurse | Measure-Object Length -Sum).Sum/1MB,1))
