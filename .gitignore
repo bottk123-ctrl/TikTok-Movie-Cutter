@@ -1,0 +1,36 @@
+# --- Python ---
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# --- Секреты и локальные настройки ---
+.env
+
+# --- Личные медиа и результаты (не коммитим) ---
+assets/voice.mp3
+assets/music.mp3
+assets/clips/*
+!assets/clips/.gitkeep
+music/*
+!music/.gitkeep
+downloads/
+output/*
+!output/.gitkeep
+workspace/*
+!workspace/.gitkeep
+
+# --- Сборка ---
+build/
+dist/
+*.spec
+
+# --- Кэши моделей ---
+.cache/
+
+# --- ОС / IDE ---
+Thumbs.db
+desktop.ini
+.vscode/
+.idea/
