@@ -120,3 +120,13 @@ copyright; when no key is available, the pipeline works with local video files.
 ## 📜 License
 
 MIT — see [LICENSE](LICENSE).
+
+---
+
+## 📫 Contact
+
+Open to freelance work and collaborations.
+
+- Email: **bottiktik123@gmail.com**
+- GitHub: [@bottk123-ctrl](https://github.com/bottk123-ctrl)
+- Portfolio: [github.com/bottk123-ctrl/portfolio](https://github.com/bottk123-ctrl/portfolio)
