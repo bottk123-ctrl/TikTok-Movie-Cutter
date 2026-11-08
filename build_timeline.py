@@ -71,7 +71,7 @@ def _prepare_clip_dir(query: str = "", video_url: str = "") -> str:
 
 
 # ---------------------------------------------------------------------------
-# ШАГ 2: ОЗВУЧКА (Silero TTS)
+# ШАГ 2: ОЗВУЧКА (Qwen3-TTS)
 # ---------------------------------------------------------------------------
 def _prepare_voice(voice_text: str = "", voice_speaker: str = "") -> float:
     """Гарантирует наличие озвучки; возвращает её длительность в секундах."""
@@ -127,7 +127,7 @@ def _execute_pipeline(progress_callback=None, video_url: str = "",
     clip_dir = _prepare_clip_dir(query=search_query, video_url=video_url)
 
     # --- 2. Озвучка (TTS) ---
-    _emit(progress_callback, 2, "Озвучка (Silero TTS)")
+    _emit(progress_callback, 2, "Озвучка (Qwen3-TTS)")
     audio_duration = _prepare_voice(voice_text, voice_speaker)
 
     # --- 3. Субтитры (Whisper) ---
