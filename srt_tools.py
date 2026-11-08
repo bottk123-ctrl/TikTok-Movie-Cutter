@@ -41,7 +41,8 @@ def parse_srt(path: str) -> List[dict]:
     if not os.path.isfile(path):
         raise FileNotFoundError(f"SRT не найден: {path}")
 
-    raw = open(path, "r", encoding="utf-8-sig", errors="replace").read()
+    with open(path, "r", encoding="utf-8-sig", errors="replace") as fh:
+        raw = fh.read()
     blocks = re.split(r"\n\s*\n", raw.strip())
 
     segments: List[dict] = []
