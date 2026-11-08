@@ -19,7 +19,7 @@ from build_timeline import run_pipeline
 ENV_PATH = os.path.join(config.BASE_DIR, ".env")
 
 WHISPER_MODELS = ["base (быстро)", "small (баланс)", "medium (качество)"]
-VOICES = ["ru-RU-DmitryNeural", "ru-RU-SvetlanaNeural", "ru-RU-DariyaNeural"]
+VOICES = ["serena", "aiden", "ryan", "vivian"]
 
 ctk.set_appearance_mode("dark")
 ctk.set_default_color_theme("blue")
@@ -147,7 +147,7 @@ class PipelineApp(ctk.CTk):
         frame.grid(row=2, column=0, padx=20, pady=6, sticky="ew")
         frame.grid_columnconfigure(0, weight=1)
 
-        ctk.CTkLabel(frame, text="Озвучка (Edge TTS)",
+        ctk.CTkLabel(frame, text="Озвучка (Qwen3-TTS)",
                      font=ctk.CTkFont(size=15, weight="bold")).grid(
             row=0, column=0, columnspan=3, padx=12, pady=(10, 4), sticky="w")
 
