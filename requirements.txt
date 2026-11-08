@@ -1,7 +1,17 @@
+# --- Распознавание речи ---
 faster-whisper>=1.0.0
+
+# --- Сеть / загрузка клипов ---
 requests>=2.31.0
 yt-dlp>=2024.0.0
+
+# --- Интерфейс ---
 customtkinter>=5.2.0
-pyinstaller>=6.0.0
+
+# --- Озвучка (Qwen3-TTS, локально на GPU) ---
+# torch ставится отдельно под свою версию CUDA, см. README.
 faster-qwen3-tts
 soundfile
+
+# --- Сборка в .exe ---
+pyinstaller>=6.0.0

@@ -51,6 +51,8 @@ zoom, and the final render in a single click, with a GUI and a `.exe` build.
 pip install -r requirements.txt
 # ffmpeg (with ffprobe), if not installed yet:
 winget install Gyan.FFmpeg
+# PyTorch for your CUDA version (required by Qwen3-TTS), for example:
+pip install torch --index-url https://download.pytorch.org/whl/cu124
 ```
 
 ## ▶ Usage
@@ -93,7 +95,7 @@ Main environment variables: `TIKTOK_AUDIO`, `TIKTOK_CLIPS`, `TIKTOK_BGM`,
 `SUBTITLE_KEYWORDS`, `SUBTITLE_FONT`, `SUBTITLE_FILL_COLOR`,
 `SUBTITLE_OUTLINE_COLOR`, `SUBTITLE_ASS_FONT_SIZE`, `SUBTITLE_ALIGNMENT`,
 `ZOOM_INTENSITY`, `ZOOM_STEP`, `APPLY_ZOOM`, `BGM_VOLUME`, `VOICE_VOLUME`,
-`BURN_SUBTITLES`, `AUTO_FETCH_CLIPS`.
+`BURN_SUBTITLES`, `AUTO_FETCH_CLIPS`, `TTS_VOICE`, `HF_HOME`.
 
 ## 🏗 Project structure
 
