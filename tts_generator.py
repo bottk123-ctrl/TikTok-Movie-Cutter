@@ -1,24 +1,26 @@
-# tts_generator.py (новая версия с Qwen3-TTS)
 """Генерация озвучки через Qwen3-TTS (локально, на GPU) с последующей конвертацией в MP3.
+
 Использует faster-qwen3-tts для ускорения на RTX 50-й серии.
 Модель загружается лениво, один раз при первом вызове.
 """
 
-import asyncio
 import os
 import re
+import subprocess
 import time
-from typing import List, Optional
+from typing import List
 
 import config
 from applog import log
+from audio_utils import find_ffmpeg
 
-# --- НОВЫЕ ИМПОРТЫ ---
-import torch
-import soundfile as sf
-from faster_qwen3_tts import FasterQwen3TTS
+# HF_HOME должен быть выставлен до импорта transformers/torch, иначе кэш моделей
+# уедет в профиль пользователя. Переопределяется переменной окружения HF_HOME.
+os.environ.setdefault("HF_HOME", config.HF_HOME)
 
-os.environ["HF_HOME"] = r"F:\huggingface_cache"
+import torch  # noqa: E402  (импорт после настройки HF_HOME)
+import soundfile as sf  # noqa: E402
+from faster_qwen3_tts import FasterQwen3TTS  # noqa: E402
 
 # --- ГОЛОСА QWEN3-TTS (CustomVoice) ---
 # Это предустановленные голоса. Для русского они могут звучать с легким акцентом.
@@ -42,7 +44,6 @@ _ALIASES = {
     "dariya": "vivian",
 }
 
-_VALID_MOD = re.compile(r"^[+-]\d{1,3}%$")
 _MAX_CHUNK_CHARS = 2500  # длинный текст режем по предложениям
 
 # Глобальная переменная для ленивой загрузки модели
@@ -122,10 +123,10 @@ def resolve_voice(speaker: str) -> str:
     return VOICES[0]
 
 # ---------------------------------------------------------------------------
-# ВСПОМОГАТЕЛЬНОЕ (оставлено без изменений)
+# ВСПОМОГАТЕЛЬНОЕ
 # ---------------------------------------------------------------------------
 def _clean_text(text: str) -> str:
-    # ... (код без изменений) ...
+    """Убирает управляющие символы; для текста без букв возвращает ''."""
     if not text:
         return ""
     text = text.replace("\r\n", "\n").replace("\r", "\n")
@@ -134,12 +135,8 @@ def _clean_text(text: str) -> str:
         return ""
     return text.strip()
 
-def _valid_mod(value: str) -> Optional[str]:
-    # ... (код без изменений) ...
-    return value if value and _VALID_MOD.match(value) else None
-
 def _split_chunks(text: str, limit: int = _MAX_CHUNK_CHARS) -> List[str]:
-    # ... (код без изменений) ...
+    """Режет длинный текст по предложениям на куски не длиннее limit символов."""
     if len(text) <= limit:
         return [text]
     parts = re.split(r"(?<=[.!?…])\s+|\n+", text)
@@ -162,7 +159,7 @@ def _split_chunks(text: str, limit: int = _MAX_CHUNK_CHARS) -> List[str]:
     return chunks
 
 # ---------------------------------------------------------------------------
-# СИНТЕЗ (НОВАЯ ЛОГИКА)
+# СИНТЕЗ
 # ---------------------------------------------------------------------------
 def _synthesize_qwen(text: str, voice: str, output_wav_path: str) -> None:
     """Синтезирует текст с помощью Qwen3-TTS и сохраняет в WAV."""
@@ -216,16 +213,14 @@ def _synthesize_with_retry(text: str, voice: str, output_wav_path: str, retries:
 
 def _concat_wavs_and_convert_to_mp3(parts: List[str], output_mp3_path: str) -> None:
     """Склеивает WAV-части в один файл и конвертирует в MP3 через ffmpeg."""
-    import subprocess
-    from audio_utils import find_ffmpeg  # используем ваш существующий поиск ffmpeg
-    
     ffmpeg = find_ffmpeg()
     # Создаем временный файл со списком частей для ffmpeg
     list_file = output_mp3_path + ".list.txt"
     with open(list_file, "w", encoding="utf-8") as f:
         for part in parts:
-            # Экранируем одинарные кавычки для формата concat
-            f.write(f"file '{part.replace(chr(39), chr(39) + chr(92) + chr(39) + chr(39))}'\n")
+            # Экранируем путь для формата concat (одинарные кавычки и слеши).
+            safe = part.replace("\\", "/").replace("'", "'\\''")
+            f.write(f"file '{safe}'\n")
     
     try:
         subprocess.run(
@@ -277,8 +272,6 @@ def generate_voice(text: str, speaker: str = "serena", output_path: str = "", lo
         # Конвертируем WAV в MP3
         if len(chunks) == 1:
             # Одна часть: просто конвертируем WAV в MP3
-            import subprocess
-            from audio_utils import find_ffmpeg
             ffmpeg = find_ffmpeg()
             subprocess.run(
                 [ffmpeg, "-y", "-i", targets[0], "-c:a", "libmp3lame", "-q:a", "2", output_path],
