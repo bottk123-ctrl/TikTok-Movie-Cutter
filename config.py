@@ -93,8 +93,6 @@ BURN_SUBTITLES: bool = os.environ.get("BURN_SUBTITLES", "1") != "0"
 
 # --- Озвучка (Qwen3-TTS, локально на GPU) ---
 TTS_VOICE: str = os.environ.get("TTS_VOICE", "serena")  # список голосов — в tts_generator.VOICES
-TTS_RATE: str = os.environ.get("TTS_RATE", "+0%")
-TTS_VOLUME: str = os.environ.get("TTS_VOLUME", "+0%")
 
 # Кэш моделей HuggingFace (Whisper скачивается в свой каталог, Qwen3-TTS — сюда).
 HF_HOME: str = os.environ.get("HF_HOME", _join(BASE_DIR, ".cache", "huggingface"))

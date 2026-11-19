@@ -3,12 +3,16 @@ name: build
 on:
   push:
     branches: [ main ]
+    tags: [ 'v*' ]
   pull_request:
     branches: [ main ]
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
-  # Быстрая проверка синтаксиса всех модулей.
+  # Быстрая проверка: синтаксис всех модулей и ошибки уровня F (неопределённые имена и т.п.).
   syntax:
     runs-on: ubuntu-latest
     steps:
@@ -17,15 +21,16 @@ jobs:
         with:
           python-version: "3.11"
       - name: Compile all modules
+        run: python -m compileall -q .
+      - name: Ruff (только ошибки)
         run: |
-          python -m py_compile \
-            applog.py config.py audio_utils.py cancellation.py \
-            clip_fetcher.py yt_fetcher.py tts_generator.py srt_tools.py \
-            subtitles.py ffmpeg_montage.py build_timeline.py gui.py
+          python -m pip install ruff
+          ruff check --select E9,F63,F7,F82 .
 
   # Полная проверка сборки .exe на Windows.
   build-exe:
     runs-on: windows-latest
+    needs: syntax
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -33,13 +38,14 @@ jobs:
           python-version: "3.11"
           cache: pip
 
+      # torch в exe не входит, поэтому ставим только нужное (без faster-qwen3-tts и torch).
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt
+          pip install faster-whisper "requests>=2.31.0" "yt-dlp>=2024.0.0" "customtkinter>=5.2.0" "pyinstaller>=6.0.0"
 
       - name: Build with PyInstaller
-        run: pyinstaller --noconfirm --onedir --windowed --name TikTokMovieCutter --collect-all customtkinter --collect-all edge_tts --collect-all faster_whisper --collect-binaries ctranslate2 --collect-data ctranslate2 --collect-all yt_dlp --hidden-import=requests --hidden-import=yt_dlp --hidden-import=edge_tts --hidden-import=ctranslate2 --exclude-module=torch --exclude-module=torchaudio --exclude-module=torchvision --exclude-module=silero_tts gui.py
+        run: pyinstaller --noconfirm TikTokMovieCutter.spec
 
       - name: Verify exe exists
         shell: pwsh
@@ -48,3 +54,29 @@ jobs:
           if (-not (Test-Path $exe)) { throw "exe не собран: $exe" }
           Write-Host "OK: $exe"
           Write-Host ("Размер, МБ: " + [math]::Round((Get-ChildItem dist\TikTokMovieCutter -Recurse | Measure-Object Length -Sum).Sum/1MB,1))
+
+      - name: Pack artifact
+        shell: pwsh
+        run: Compress-Archive -Path dist\TikTokMovieCutter\* -DestinationPath TikTokMovieCutter-windows.zip
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: TikTokMovieCutter-windows
+          path: TikTokMovieCutter-windows.zip
+          retention-days: 14
+
+  # Релиз: только при пуше тега v*. Прикладывает zip к GitHub Release.
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: build-exe
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: TikTokMovieCutter-windows
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: TikTokMovieCutter-windows.zip
+          generate_release_notes: true

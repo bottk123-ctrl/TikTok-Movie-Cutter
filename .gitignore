@@ -25,6 +25,7 @@ workspace/*
 build/
 dist/
 *.spec
+!TikTokMovieCutter.spec
 
 # --- Кэш моделей (HuggingFace и др.) ---
 .cache/

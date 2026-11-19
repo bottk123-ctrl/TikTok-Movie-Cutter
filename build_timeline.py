@@ -23,7 +23,6 @@ from audio_utils import get_audio_duration_ffprobe
 from clip_fetcher import fetch_clips_for_pipeline, fetch_yt_clips
 from srt_tools import format_srt_for_tiktok
 from subtitles import transcribe_audio
-from tts_generator import generate_voice
 
 TOTAL_STEPS = 6
 
@@ -76,6 +75,8 @@ def _prepare_clip_dir(query: str = "", video_url: str = "") -> str:
 def _prepare_voice(voice_text: str = "", voice_speaker: str = "") -> float:
     """Гарантирует наличие озвучки; возвращает её длительность в секундах."""
     if voice_text and voice_text.strip():
+        # Ленивый импорт: tts_generator тянет torch, а в exe torch исключён.
+        from tts_generator import generate_voice
         generate_voice(voice_text, voice_speaker or config.TTS_VOICE, config.AUDIO_PATH)
     if not os.path.isfile(config.AUDIO_PATH):
         raise RuntimeError(

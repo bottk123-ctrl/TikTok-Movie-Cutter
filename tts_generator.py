@@ -237,7 +237,7 @@ def _concat_wavs_and_convert_to_mp3(parts: List[str], output_mp3_path: str) -> N
             except OSError:
                 pass
 
-def generate_voice(text: str, speaker: str = "serena", output_path: str = "", log_callback=None, rate: str = "", volume: str = "") -> str:
+def generate_voice(text: str, speaker: str = "serena", output_path: str = "", log_callback=None) -> str:
     """Генерирует озвучку текста голосом Qwen3-TTS и сохраняет в MP3."""
     text = _clean_text(text)
     if not text:
@@ -246,8 +246,6 @@ def generate_voice(text: str, speaker: str = "serena", output_path: str = "", lo
     os.makedirs(os.path.dirname(os.path.abspath(output_path)), exist_ok=True)
     
     voice = resolve_voice(speaker)
-    # rate и volume пока игнорируются, так как Qwen3-TTS не поддерживает их напрямую.
-    # При необходимости можно реализовать пост-обработку через ffmpeg.
     
     log(f"Генерация Qwen3-TTS (голос {voice}, {len(text)} симв.)...")
     chunks = _split_chunks(text)

@@ -3,31 +3,18 @@ setlocal
 
 REM ==========================================================================
 REM  Сборка GUI в dist\TikTokMovieCutter\ (Python + FFmpeg, без DaVinci).
-REM  TTS — edge-tts (без torch/silero) => сборка лёгкая и быстрая.
-REM
-REM  Почему НЕ --collect-all ctranslate2:
-REM    его подмодуль converters импортирует torch, из-за чего в сборку
-REM    затягивался torch (~360 МБ). Нам нужны только нативные библиотеки
-REM    ctranslate2 (движок faster-whisper) => collect-binaries + collect-data.
-REM  Явные --exclude-module не дают torch/torchaudio попасть в exe.
+REM  Вся конфигурация сборки — в TikTokMovieCutter.spec (единый источник
+REM  правды, его же использует CI). Здесь только запуск.
 REM ==========================================================================
 
-pyinstaller --noconfirm --onedir --windowed --name TikTokMovieCutter ^
-  --collect-all customtkinter ^
-  --collect-all edge_tts ^
-  --collect-all faster_whisper ^
-  --collect-binaries ctranslate2 ^
-  --collect-data ctranslate2 ^
-  --collect-all yt_dlp ^
-  --hidden-import=requests ^
-  --hidden-import=yt_dlp ^
-  --hidden-import=edge_tts ^
-  --hidden-import=ctranslate2 ^
-  --exclude-module=torch ^
-  --exclude-module=torchaudio ^
-  --exclude-module=torchvision ^
-  --exclude-module=silero_tts ^
-  gui.py
+pyinstaller --noconfirm TikTokMovieCutter.spec
+
+if errorlevel 1 (
+  echo.
+  echo Сборка упала.
+  endlocal
+  exit /b 1
+)
 
 echo.
 echo Готово: dist\TikTokMovieCutter\TikTokMovieCutter.exe
