@@ -1,6 +1,7 @@
 """Генерация субтитров через faster-whisper -> SRT (без DaVinci Resolve)."""
 
 import os
+import threading
 from typing import List, Optional
 
 import config
@@ -8,13 +9,19 @@ from applog import log
 from cancellation import check
 from srt_tools import write_srt
 
+# Модель грузится секунды, а прогонов за сессию обычно несколько — кэшируем.
+_MODELS: dict = {}
+_MODEL_LOCK = threading.Lock()
+# Устройства, которые уже не сработали (нет CUDA/драйвера): второй раз не пробуем.
+_BROKEN_DEVICES: set = set()
+
 
 def _load_whisper_model(model_size: str):
     """Ленивая загрузка faster-whisper с понятной ошибкой, если нет пакета.
 
-    Всегда CPU + int8: на системах без CUDA попытка использовать GPU падает
-    с ошибкой вида "cublas64_12.dll is not found". Нам нужна 100% стабильность
-    на процессоре, поэтому device/compute_type заданы жёстко.
+    По умолчанию CPU + int8: на системах без CUDA попытка использовать GPU падает
+    с ошибкой вида "cublas64_12.dll is not found". Если в конфиге явно задан GPU,
+    пробуем его, а при неудаче автоматически откатываемся на CPU.
     """
     try:
         from faster_whisper import WhisperModel  # type: ignore
@@ -23,12 +30,35 @@ def _load_whisper_model(model_size: str):
             "faster-whisper не установлен. Выполни: pip install faster-whisper"
         ) from exc
 
-    log(f"Загрузка модели Whisper '{model_size}' (device=cpu, compute_type=int8)...")
-    return WhisperModel(
-        model_size,
-        device="cpu",        # без CUDA — стабильно на любом ПК
-        compute_type="int8",  # быстрый инференс на CPU
-    )
+    device = config.WHISPER_DEVICE or "cpu"
+    compute_type = config.WHISPER_COMPUTE_TYPE or "int8"
+    if device != "cpu" and device in _BROKEN_DEVICES:
+        log(f"Устройство {device} уже не запускалось — сразу CPU/int8.")
+        device, compute_type = "cpu", "int8"
+    key = (model_size, device, compute_type)
+
+    with _MODEL_LOCK:
+        cached = _MODELS.get(key)
+        if cached is not None:
+            log(f"Модель Whisper '{model_size}' уже загружена — переиспользую.")
+            return cached
+
+        log(f"Загрузка модели Whisper '{model_size}' "
+            f"(device={device}, compute_type={compute_type})...")
+        try:
+            model = WhisperModel(model_size, device=device,
+                                 compute_type=compute_type)
+        except Exception as exc:  # noqa: BLE001 — нет CUDA/драйвера и т.п.
+            if device == "cpu":
+                raise
+            log(f"Whisper на {device} не запустился ({exc}) — "
+                "переключаюсь на CPU/int8.")
+            _BROKEN_DEVICES.add(device)
+            key = (model_size, "cpu", "int8")
+            model = WhisperModel(model_size, device="cpu", compute_type="int8")
+
+        _MODELS[key] = model
+        return model
 
 
 def transcribe_audio(

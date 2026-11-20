@@ -4,6 +4,7 @@
 Модель загружается лениво, один раз при первом вызове.
 """
 
+import json
 import os
 import re
 import subprocess
@@ -13,6 +14,7 @@ from typing import List
 import config
 from applog import log
 from audio_utils import find_ffmpeg
+from text_utils import clean_text, normalize_text
 
 # HF_HOME должен быть выставлен до импорта transformers/torch, иначе кэш моделей
 # уедет в профиль пользователя. Переопределяется переменной окружения HF_HOME.
@@ -127,13 +129,7 @@ def resolve_voice(speaker: str) -> str:
 # ---------------------------------------------------------------------------
 def _clean_text(text: str) -> str:
     """Убирает управляющие символы; для текста без букв возвращает ''."""
-    if not text:
-        return ""
-    text = text.replace("\r\n", "\n").replace("\r", "\n")
-    text = "".join(ch for ch in text if ch in "\n\t" or ord(ch) >= 32)
-    if not re.search(r"[^\W\d_]", text, flags=re.UNICODE):
-        return ""
-    return text.strip()
+    return clean_text(text)
 
 def _split_chunks(text: str, limit: int = _MAX_CHUNK_CHARS) -> List[str]:
     """Режет длинный текст по предложениям на куски не длиннее limit символов."""
@@ -292,6 +288,15 @@ def generate_voice(text: str, speaker: str = "serena", output_path: str = "", lo
     
     if not os.path.isfile(output_path) or os.path.getsize(output_path) == 0:
         raise RuntimeError("Qwen3-TTS не создал аудиофайл (проверь драйверы/CUDA).")
-    
+
+    # Побочный файл с текстом и голосом: пайплайн не перегенерирует озвучку зря
+    # и заметит смену голоса при том же тексте.
+    try:
+        meta = {"text": normalize_text(text), "speaker": speaker, "voice": voice}
+        with open(output_path + ".json", "w", encoding="utf-8", newline="\n") as fh:
+            json.dump(meta, fh, ensure_ascii=False)
+    except OSError:
+        pass
+
     log(f"Озвучка сохранена: {output_path}")
     return output_path

@@ -26,7 +26,8 @@ zoom, and the final render in a single click, with a GUI and a `.exe` build.
 - **Voice-over (Qwen3-TTS)** — local, GPU-accelerated neural TTS via
   `faster-qwen3-tts` with the *CustomVoice* model (`serena`, `aiden`, `ryan`,
   `vivian`; legacy voice names are mapped to aliases). Exports MP3 directly, no
-  cloud service required.
+  cloud service required. Type the text into the GUI field and the pipeline
+  voices it automatically; unchanged text is not re-generated.
 - **Whisper** (`faster-whisper`) — speech recognition (`tiny` / `base` / `small` /
   `medium`, CPU by default).
 - **TikTok subtitles** — split into short phrases, keyword highlighting, and burned
@@ -59,8 +60,18 @@ pip install torch --index-url https://download.pytorch.org/whl/cu124
 
 ```powershell
 python gui.py            # graphical interface
-python build_timeline.py # console mode
+python build_timeline.py # console mode (reads .env and environment variables)
+
+# console mode with arguments
+python build_timeline.py --query "Matrix" --voice-text-file script.txt
+python build_timeline.py --url "https://youtu.be/..." --voice "aiden" --no-zoom
+python build_timeline.py --check   # only check ffmpeg/Whisper/clips/voice, no render
 ```
+
+All CLI flags: `python build_timeline.py --help`.
+
+Logs are written to `workspace\pipeline.log` (rotated at 2 MB); disable with
+`LOG_TO_FILE=0`.
 
 ## 🔄 Pipeline (6 steps)
 
@@ -86,16 +97,18 @@ are created next to the application.
 
 ## ⚙️ Configuration (`.env` next to the app)
 
-The GUI saves automatically: `CLIP_CAFE_API_KEY`, `TIKTOK_OUTPUT_DIR`,
+`.env` is read by **both** the GUI and the CLI (real environment variables win over
+the file). The GUI saves automatically: `CLIP_CAFE_API_KEY`, `TIKTOK_OUTPUT_DIR`,
 `WHISPER_MODEL`, `TTS_VOICE`, `APPLY_ZOOM`, `BURN_SUBTITLES`, `LAST_QUERY`,
 `YT_VIDEO_URL`.
 
 Main environment variables: `TIKTOK_AUDIO`, `TIKTOK_CLIPS`, `TIKTOK_BGM`,
-`WHISPER_MODEL`, `WHISPER_LANGUAGE`, `ENABLE_SUBTITLES`, `SUBTITLE_MAX_WORDS`,
-`SUBTITLE_KEYWORDS`, `SUBTITLE_FONT`, `SUBTITLE_FILL_COLOR`,
-`SUBTITLE_OUTLINE_COLOR`, `SUBTITLE_ASS_FONT_SIZE`, `SUBTITLE_ALIGNMENT`,
-`ZOOM_INTENSITY`, `ZOOM_STEP`, `APPLY_ZOOM`, `BGM_VOLUME`, `VOICE_VOLUME`,
-`BURN_SUBTITLES`, `AUTO_FETCH_CLIPS`, `TTS_VOICE`, `HF_HOME`.
+`WHISPER_MODEL`, `WHISPER_LANGUAGE`, `WHISPER_DEVICE`, `WHISPER_COMPUTE_TYPE`,
+`ENABLE_SUBTITLES`, `SUBTITLE_MAX_WORDS`, `SUBTITLE_KEYWORDS`, `SUBTITLE_FONT`,
+`SUBTITLE_FILL_COLOR`, `SUBTITLE_OUTLINE_COLOR`, `SUBTITLE_ASS_FONT_SIZE`,
+`SUBTITLE_ALIGNMENT`, `ZOOM_INTENSITY`, `ZOOM_STEP`, `APPLY_ZOOM`, `BGM_VOLUME`,
+`VOICE_VOLUME`, `BURN_SUBTITLES`, `AUTO_FETCH_CLIPS`, `TTS_VOICE`, `HF_HOME`,
+`LOG_TO_FILE`, `LOG_PATH`.
 
 ## 🏗 Project structure
 

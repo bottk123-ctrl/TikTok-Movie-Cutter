@@ -19,6 +19,34 @@ def _base_dir() -> str:
 BASE_DIR: str = _base_dir()
 _join = os.path.join
 
+ENV_PATH: str = os.environ.get("TIKTOK_ENV", _join(BASE_DIR, ".env"))
+
+
+def _load_env_file(path: str) -> dict:
+    """Читает .env (KEY=VALUE, кавычки и комментарии допустимы)."""
+    data: dict = {}
+    if not os.path.isfile(path):
+        return data
+    try:
+        with open(path, "r", encoding="utf-8-sig") as fh:
+            for line in fh:
+                line = line.strip()
+                if not line or line.startswith("#") or "=" not in line:
+                    continue
+                key, value = line.split("=", 1)
+                key = key.strip()
+                if key:
+                    data[key] = value.strip().strip('"').strip("'")
+    except OSError:
+        return {}
+    return data
+
+
+# .env читается ДО конфига, поэтому CLI и GUI видят одни и те же настройки.
+# Реальные переменные окружения имеют приоритет над файлом.
+for _env_key, _env_value in _load_env_file(ENV_PATH).items():
+    os.environ.setdefault(_env_key, _env_value)
+
 # --- Пути по умолчанию (относительно BASE_DIR) ---
 ASSETS_DIR: str = os.environ.get("TIKTOK_ASSETS", _join(BASE_DIR, "assets"))
 WORK_DIR: str = os.environ.get("TIKTOK_WORKDIR", _join(BASE_DIR, "workspace"))
@@ -96,6 +124,12 @@ TTS_VOICE: str = os.environ.get("TTS_VOICE", "serena")  # список голо�
 
 # Кэш моделей HuggingFace (Whisper скачивается в свой каталог, Qwen3-TTS — сюда).
 HF_HOME: str = os.environ.get("HF_HOME", _join(BASE_DIR, ".cache", "huggingface"))
+# Выставляем сразу: библиотеки (torch/transformers) читают HF_HOME при импорте.
+os.environ.setdefault("HF_HOME", HF_HOME)
+
+# --- Логи ---
+LOG_TO_FILE: bool = os.environ.get("LOG_TO_FILE", "1") != "0"
+LOG_PATH: str = os.environ.get("LOG_PATH", _join(WORK_DIR, "pipeline.log"))
 
 # --- Форматы файлов ---
 VIDEO_EXTENSIONS = {".mp4", ".mov", ".mxf", ".mkv", ".webm", ".avi"}

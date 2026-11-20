@@ -132,6 +132,13 @@ def split_video_into_clips(video_path: str, output_dir: str,
     ffmpeg = _find_ffmpeg()
     pattern = os.path.join(output_dir, "clip_%03d.mp4")
 
+    # Убираем клипы прошлых роликов: иначе они попадут в список новых.
+    for stale in glob.glob(os.path.join(output_dir, "clip_*.mp4")):
+        try:
+            os.remove(stale)
+        except OSError:
+            pass
+
     cmd = [
         ffmpeg, "-y", "-i", video_path,
         "-c:v", "libx264", "-preset", "veryfast", "-crf", "23",

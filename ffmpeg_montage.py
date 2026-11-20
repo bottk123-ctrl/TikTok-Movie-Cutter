@@ -36,6 +36,20 @@ def _list_videos(clips_dir: str) -> List[str]:
     return files
 
 
+def _clean_old_segments(seg_dir: str) -> None:
+    """Удаляет сегменты прошлых прогонов, чтобы не копить мусор на диске."""
+    removed = 0
+    for name in os.listdir(seg_dir):
+        if name.startswith("seg_") and name.endswith(".mp4"):
+            try:
+                os.remove(os.path.join(seg_dir, name))
+                removed += 1
+            except OSError:
+                pass
+    if removed:
+        log(f"Удалено старых сегментов: {removed}.")
+
+
 def pick_random_bgm(music_dir: str) -> Optional[str]:
     """Случайный трек из папки с музыкой (или None, если папки/треков нет)."""
     if not music_dir or not os.path.isdir(music_dir):
@@ -56,11 +70,26 @@ def pick_random_bgm(music_dir: str) -> Optional[str]:
 # ШАГ 4: СКЛЕЙКА И ОБРЕЗКА КЛИПОВ ПОД ДЛИНУ АУДИО
 # ---------------------------------------------------------------------------
 def concat_and_trim_clips(clips_dir: str, audio_duration: float,
-                          output_video_path: str, work_dir: Optional[str] = None) -> str:
+                          output_video_path: str, work_dir: Optional[str] = None,
+                          clips: Optional[List[str]] = None) -> str:
     """Приводит клипы к 1080x1920@30 H.264, зацикливает/обрезает под длину
-    аудио и склеивает в один немой видеофайл. Возвращает путь."""
+    аудио и склеивает в один немой видеофайл. Возвращает путь.
+
+    clips — явный список файлов (свежая загрузка). Если не передан, берутся
+    все видео из clips_dir.
+    """
     ffmpeg = find_ffmpeg()
-    clips = _list_videos(clips_dir)
+    if clips is not None:
+        found = [c for c in clips if os.path.isfile(c)]
+        if not found:
+            raise RuntimeError(
+                "Клипы не найдены: явный список пуст или файлы удалены."
+            )
+        if len(found) != len(clips):
+            log(f"Часть клипов пропала ({len(clips) - len(found)} шт.) — беру оставшиеся.")
+        clips = found
+    else:
+        clips = _list_videos(clips_dir)
     if not clips:
         raise RuntimeError(f"В папке нет видео: {clips_dir}")
 
@@ -71,6 +100,7 @@ def concat_and_trim_clips(clips_dir: str, audio_duration: float,
     work_dir = work_dir or os.path.join(tempfile.gettempdir(), "tiktok_montage")
     seg_dir = os.path.join(work_dir, "segments")
     os.makedirs(seg_dir, exist_ok=True)
+    _clean_old_segments(seg_dir)
 
     durations: dict = {}
 

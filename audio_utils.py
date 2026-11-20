@@ -64,6 +64,11 @@ def find_ffmpeg() -> str:
     )
 
 
+def find_ffprobe() -> str:
+    """Публичный алиас поиска ffprobe (для предпроверки)."""
+    return _find_ffprobe()
+
+
 def run_process(cmd: List[str], desc: str = "process") -> None:
     """Запускает внешний процесс с поддержкой отмены.
 

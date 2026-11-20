@@ -14,12 +14,13 @@ from tkinter import Menu, filedialog
 
 import cancellation
 import config
-from build_timeline import run_pipeline
+from build_timeline import preflight, run_pipeline
 
-ENV_PATH = os.path.join(config.BASE_DIR, ".env")
+ENV_PATH = config.ENV_PATH
 
 WHISPER_MODELS = ["base (быстро)", "small (баланс)", "medium (качество)"]
 VOICES = ["serena", "aiden", "ryan", "vivian"]
+VOICE_PLACEHOLDER = "Вставь сюда текст для озвучки..."
 
 ctk.set_appearance_mode("dark")
 ctk.set_default_color_theme("blue")
@@ -154,7 +155,7 @@ class PipelineApp(ctk.CTk):
         self.voice_text = ctk.CTkTextbox(frame, height=80, wrap="word")
         self.voice_text.grid(row=1, column=0, columnspan=3,
                              padx=12, pady=(0, 6), sticky="ew")
-        self.voice_text.insert("1.0", "Вставь сюда текст для озвучки...")
+        self.voice_text.insert("1.0", VOICE_PLACEHOLDER)
 
         ctk.CTkLabel(frame, text="Голос:").grid(
             row=2, column=0, padx=(12, 8), pady=(0, 12), sticky="w")
@@ -360,10 +361,15 @@ class PipelineApp(ctk.CTk):
             self.append_log(f"Не удалось открыть папку: {exc}")
 
     # -- озвучка --
+    def _voice_text_value(self) -> str:
+        """Текст из поля озвучки без подсказки-заглушки."""
+        text = self.voice_text.get("1.0", "end").strip()
+        return "" if text == VOICE_PLACEHOLDER else text
+
     def _on_generate_voice(self) -> None:
         if self._voice_running:
             return
-        text = self.voice_text.get("1.0", "end").strip()
+        text = self._voice_text_value()
         if not text:
             self.append_log("Введите текст для озвучки.")
             return
@@ -409,6 +415,18 @@ class PipelineApp(ctk.CTk):
         whisper_model = self._whisper_model.get().split()[0]
         apply_zoom = bool(self._apply_zoom.get())
         burn_subs = bool(self._burn_subs.get())
+        voice_text = self._voice_text_value()
+        voice_speaker = self._voice.get()
+
+        # Ранняя проверка: понятные сообщения вместо падения на середине монтажа.
+        problems = preflight(video_url=video_url, query=query,
+                             voice_text=voice_text, api_key=api_key or None,
+                             need_subtitles=burn_subs and config.ENABLE_SUBTITLES)
+        if problems:
+            for problem in problems:
+                self.append_log(f"ПРЕДПРОВЕРКА: {problem}")
+            self._set_status("Не хватает данных для запуска — см. лог.")
+            return
 
         try:
             os.makedirs(output_dir, exist_ok=True)
@@ -437,12 +455,13 @@ class PipelineApp(ctk.CTk):
         threading.Thread(
             target=self._worker,
             args=(query, video_url, api_key, output_dir, whisper_model,
-                  apply_zoom, burn_subs),
+                  apply_zoom, burn_subs, voice_text, voice_speaker),
             daemon=True,
         ).start()
 
     def _worker(self, query, video_url, api_key, output_dir,
-                whisper_model, apply_zoom, burn_subs) -> None:
+                whisper_model, apply_zoom, burn_subs,
+                voice_text="", voice_speaker="") -> None:
         try:
             ok = run_pipeline(
                 query=query,
@@ -455,6 +474,8 @@ class PipelineApp(ctk.CTk):
                 video_url=video_url,
                 apply_zoom=apply_zoom,
                 burn_subtitles=burn_subs,
+                voice_text=voice_text,
+                voice_speaker=voice_speaker,
             )
             if self.is_cancelled:
                 self._set_status("Отменено пользователем.")
